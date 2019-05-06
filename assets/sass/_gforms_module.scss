@@ -1,0 +1,30 @@
+/* GravityForms suppport and stype */
+
+.gforms_section {
+    .gform_wrapper input:not([type=radio]):not([type=checkbox]):not([type=submit]):not([type=button]):not([type=image]):not([type=file]) {
+        padding: 11px;
+    }
+
+    .gform_wrapper textarea {
+        padding: 15px;
+    }
+
+    .gform_wrapper.gf_browser_chrome .gfield_checkbox li input, .gform_wrapper.gf_browser_chrome .gfield_checkbox li input[type=checkbox], .gform_wrapper.gf_browser_chrome .gfield_radio li input[type=radio] {
+        margin-top: 0px;
+    }
+
+    .gform_wrapper .gfield_radio li label {
+        margin: 2px 0 0 7px;
+    }
+
+    .gform_wrapper .top_label .gfield_label {
+        font-size: 19px;
+        font-weight: 500;
+    }
+    .gform_wrapper .gfield_checkbox li label, .gform_wrapper .gfield_radio li label {
+        font-size: inherit;
+    }
+    strong {
+        font-weight: 500;
+    }
+}

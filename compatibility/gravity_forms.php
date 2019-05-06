@@ -1,0 +1,2 @@
+<?php
+// Toggle label setting

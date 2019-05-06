@@ -1,0 +1,49 @@
+/*
+Theme Name:		 PM2020
+Theme URI:		 https://wpcustomify.com/
+Description:	 WPCustomify is a child theme of Customify, created by ChildTheme-Generator.com
+Author:			 Customify
+Author URI:		 https://wpcustomify.com/
+Template:		 customify
+Version:		 1.0.2
+Text Domain:	 wpcustomify
+*/
+
+
+/*
+    Add your custom styles here
+*/
+
+$gl-devices-list: (
+        desktop: "screen and (min-width: 1025px)", // up 1024px
+        tablet: "screen and (max-width: 1024px)", // 568px - 1024px
+        mobile: "screen and (max-width: 568px)" // from to 568px to smaller
+) !default;
+@mixin for_device( $device_name ){
+    @if map-has-key( $gl-devices-list, $device_name) {
+        @media #{map-get( $gl-devices-list, $device_name)} {
+            @content;
+        }
+    }@else {
+        @if map-has-key( $gl-mq-list, $device_name) {
+            @media #{map-get($gl-mq-list, $device_name)} {
+                @content;
+            }
+        }
+    }
+}
+
+// Typekit
+@import "typography";
+
+// Layouts
+@import "layouts";
+
+// Documentation module
+@import "documentation_module";
+
+// gforms module
+@import "gforms_module";
+
+// gforms module
+@import "edd";
