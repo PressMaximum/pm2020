@@ -8,6 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Disable unuseful metadata
 require_once get_stylesheet_directory() . '/metabox.php';
+require_once get_stylesheet_directory() . '/elementor/init.php';
 
 // Disable emoji.
 remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
@@ -227,4 +228,128 @@ function pm2020_search_docs_form() {
 		<div class="wedocs-sample-term"><?php _e( 'Search documentation using terms like "install", "import site", or "header builder".' ); ?></div>
 	</form>
 	<?php
+}
+
+
+
+/**
+ * Get Purchase Link
+ *
+ * Builds a Purchase link for a specified download based on arguments passed.
+ * This function is used all over EDD to generate the Purchase or Add to Cart
+ * buttons. If no arguments are passed, the function uses the defaults that have
+ * been set by the plugin. The Purchase link is built for simple and variable
+ * pricing and filters are available throughout the function to override
+ * certain elements of the function.
+ *
+ * $download_id = null, $link_text = null, $style = null, $color = null, $class = null
+ *
+ * @see edd_get_purchase_link;
+ *
+ * @since 1.0
+ * @param array $args Arguments for display
+ * @return string $purchase_form
+ */
+function pm_edd_get_purchase_link( $args = array() ) {
+	global $post, $edd_displayed_form_ids;
+
+	$purchase_page = edd_get_option( 'purchase_page', false );
+	if ( ! $purchase_page || $purchase_page == 0 ) {
+		edd_set_error( 'set_checkout', sprintf( __( 'No checkout page has been configured. Visit <a href="%s">Settings</a> to set one.', 'easy-digital-downloads' ), admin_url( 'edit.php?post_type=download&page=edd-settings' ) ) );
+		edd_print_errors();
+		return false;
+	}
+
+	$post_id = is_object( $post ) ? $post->ID : 0;
+	$button_behavior = edd_get_download_button_behavior( $post_id );
+
+	$defaults = apply_filters(
+		'edd_purchase_link_defaults',
+		array(
+			'download_id' => $post_id,
+			'price'       => (bool) true,
+			'price_id'    => isset( $args['price_id'] ) ? $args['price_id'] : false,
+			'direct'      => $button_behavior == 'direct' ? true : false,
+			'text'        => $button_behavior == 'direct' ? edd_get_option( 'buy_now_text', __( 'Buy Now', 'easy-digital-downloads' ) ) : edd_get_option( 'add_to_cart_text', __( 'Purchase', 'easy-digital-downloads' ) ),
+			'style'       => edd_get_option( 'button_style', 'button' ),
+			'color'       => edd_get_option( 'checkout_color', 'blue' ),
+			'class'       => 'edd-submit',
+		)
+	);
+
+	$args = wp_parse_args( $args, $defaults );
+
+	// Override the straight_to_gateway if the shop doesn't support it
+	if ( ! edd_shop_supports_buy_now() ) {
+		$args['direct'] = false;
+	}
+
+	$download = new EDD_Download( $args['download_id'] );
+
+	if ( empty( $download->ID ) ) {
+		return false;
+	}
+
+	if ( 'publish' !== $download->post_status && ! current_user_can( 'edit_product', $download->ID ) ) {
+		return false; // Product not published or user doesn't have permission to view drafts
+	}
+
+	// Override color if color == inherit
+	$args['color'] = ( $args['color'] == 'inherit' ) ? '' : $args['color'];
+
+	$options          = array();
+	$variable_pricing = $download->has_variable_prices();
+	$data_variable    = $variable_pricing ? ' data-variable-price="yes"' : 'data-variable-price="no"';
+	$type             = $download->is_single_price_mode() ? 'data-price-mode=multi' : 'data-price-mode=single';
+
+	$show_price       = $args['price'] && $args['price'] !== 'no';
+	$data_price_value = 0;
+	$price            = false;
+
+	if ( $variable_pricing && false !== $args['price_id'] ) {
+
+		$price_id            = $args['price_id'];
+		$prices              = $download->prices;
+		$options['price_id'] = $args['price_id'];
+		$found_price         = isset( $prices[ $price_id ] ) ? $prices[ $price_id ]['amount'] : false;
+
+		$data_price_value    = $found_price;
+
+		if ( $show_price ) {
+			$price = $found_price;
+		}
+	} elseif ( ! $variable_pricing ) {
+
+		$data_price_value = $download->price;
+
+		if ( $show_price ) {
+			$price = $download->price;
+		}
+	}
+
+	$args['display_price'] = $data_price_value;
+	$button_text = ! empty( $args['text'] ) ? '&nbsp;&ndash;&nbsp;' . $args['text'] : '';
+
+	if ( false !== $price ) {
+		if ( 0 == $price ) {
+			$args['text'] = __( 'Free', 'easy-digital-downloads' ) . $button_text;
+		} else {
+			$args['text'] = edd_currency_filter( edd_format_amount( $price ) ) . $button_text;
+		}
+	}
+
+	$args = apply_filters( 'edd_purchase_link_args', $args );
+
+	ob_start();
+
+	echo '<div class="edd_fastspring_checkout ' . ( $variable_pricing ? ' has-variable ' : ' no-variable ' ) . ' edd_purchase_submit_wrapper edd_download_purchase_form">';
+		ft_edd_variable_listing( $download, $args );
+		$class = implode( ' ', array( $args['style'], $args['color'], trim( $args['class'] ) ) );
+	   // echo '<a href="#" data-fsc-action="Reset,Add,Promocode,Checkout" class="ft-fsc-edd-add-to-cart ' . esc_attr( $class ) . '" data-fsc-item-path-value="' . esc_attr( $download->post_name ) . '"><span class="edd-add-to-cart-label">' . $args['text'] . '</span></a>';
+		echo '<a href="#" class="ft-fsc-edd-add-to-cart ' . esc_attr( $class ) . '" data-fsc-item-path-value="' . esc_attr( $download->post_name ) . '"><span class="edd-add-to-cart-label">' . $args['text'] . '</span></a>';
+	echo '</div>';
+
+	$purchase_form = ob_get_clean();
+
+	return apply_filters( 'edd_purchase_download_form', $purchase_form, $args );
 }
